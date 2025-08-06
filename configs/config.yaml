@@ -1,0 +1,150 @@
+defaults:
+  - _self_
+  - model_name: NT_50M.yaml
+
+run_cut_seq: true
+run_cut_seq_to_fna: true
+run_extract_ef: true
+run_extract_llmr: true
+run_enhance_rep: true
+run_ml_predict: true
+
+input_path: null
+output_path: null
+
+cut_seq:
+  data_path: ${input_path}
+  output_dir: ${output_path}
+  output_path: ${output_path}/Sequence_segments
+  split_length: 1000
+  overlap_ratio: 0.2
+cut_seq_to_fna:
+  data_path: ${input_path}
+  output_dir: ${cut_seq.output_dir}
+  output_path: ${cut_seq.output_dir}/Temp/Raw_Split
+  split_length: 1000
+  overlap_ratio: 0.2
+extract_ef:
+  data_path: ${cut_seq_to_fna.output_path}
+  output_dir: ${cut_seq.output_dir}
+  output_path: ${cut_seq.output_dir}/Engineered_features
+  k: [3]
+extract_llmr:
+  dataset:
+    _name_: ProbioticDataset
+    pkl_path: ${cut_seq.output_path}
+    dest_path: ${cut_seq.output_dir}/Temp/Task
+    train_split: train
+    val_split: val
+    test_split: test
+    dataset_name: ''
+    batch_size: 32
+    max_length: 2500
+  train:
+    num_train_epochs: 1
+    learning_rate: 5e-5
+    per_device_train_batch_size: ${extract_llmr.dataset.batch_size}
+    per_device_eval_batch_size: ${extract_llmr.dataset.batch_size}
+    gradient_accumulation_steps: 1
+    max_steps: -1
+    seed: 42
+    output_dir: ${cut_seq.output_dir}/Foundation_model_representations/${extract_llmr.model._name_}
+    logging_dir: ${cut_seq.output_dir}/Foundation_model_representations/${extract_llmr.model._name_}/logs
+    run_name: ${extract_llmr.model._name_}
+    do_train: true
+    do_eval: true
+    do_predict: true
+    logging_strategy: steps # [steps, epoch, no]
+    logging_steps: 500
+    save_strategy: ${extract_llmr.train.logging_strategy} # [steps, epoch, no]
+    save_steps: ${extract_llmr.train.logging_steps}
+    evaluation_strategy: steps # [steps, epoch, no]
+    metric_for_best_model: loss
+    overwrite_output_dir: false
+    save_safetensors: true
+    resume_from_checkpoint: null
+    warmup_steps: 100
+  model:
+    _name_: NTForClassifier
+    pretrained_model_name_or_path: /home/share/huadjyin/home/yinpeng/tnz/NT_model/50M_multi_species_v2/
+    num_classes: 2
+    hidden_size: null
+    freeze_embedding: true
+    pooling: cls # [cls, mean, max, last]
+enhance_rep:
+    dataset:
+      _name_: ProbioticEnhanceRepresentationDataset
+      llm_rep_path: ${cut_seq.output_dir}/Foundation_model_representations/${extract_llmr.model._name_}
+      ef_path: ${cut_seq.output_dir}/Engineered_features
+      train_split: train
+      val_split: val
+      test_split: pickles
+      dataset_name: ''
+      batch_size: 128
+      max_length: 2500
+      mlm: False
+    train:
+      num_train_epochs: 1
+      learning_rate: 5e-5
+      per_device_train_batch_size: ${enhance_rep.dataset.batch_size}
+      per_device_eval_batch_size: ${enhance_rep.dataset.batch_size}
+      gradient_accumulation_steps: 1
+      max_steps: -1
+      seed: 42
+      output_dir: ${cut_seq.output_dir}/Enhanced_representations/${extract_llmr.model._name_}
+      logging_dir: ${cut_seq.output_dir}/Enhanced_representations/${extract_llmr.model._name_}/logs
+      run_name: ${enhance_rep.model._name_}
+      do_train: true
+      do_eval: true
+      do_predict: true
+      logging_strategy: steps # [steps, epoch, no]
+      logging_steps: 500
+      save_strategy: ${enhance_rep.train.logging_strategy} # [steps, epoch, no]
+      save_steps: ${enhance_rep.train.logging_steps}
+      evaluation_strategy: steps # [steps, epoch, no]
+      metric_for_best_model: loss
+      overwrite_output_dir: false
+      save_safetensors: true
+      resume_from_checkpoint: model_weights/Cross_Attention/
+      warmup_steps: 100
+    model:
+      _name_: EnhanceRepresentation
+      pretrained_model_name_or_path: null
+      num_classes: 2
+      hidden_size: null
+      freeze_embedding: true
+      pooling: cls # [cls, mean, max, last]
+      llm_feature: ${extract_llmr.model._name_}
+ml_predict:
+  model:
+    model_name: XGBClassifier
+    final_model_name: LogisticRegression
+    param_grid: 
+      max_depth: 5
+      learning_rate: 0.2
+      n_estimators: 300
+      C: 0.1
+      penalty: l2
+    cv: 5
+    method: stacked # ['stacked', 'add', 'mean', 'max', 'min', 'median', 'sum']
+    svc_max_iter: -1
+  dataset:
+    name: ProbioticDataset
+    dest_path: ${cut_seq.output_dir}/Enhanced_representations/${extract_llmr.model._name_}
+    dataset_name: ''
+    train_split: null
+    val_split: null
+    test_split: pickles
+    split_num: -1
+    train_size: -1
+  train:
+    seed: 42 
+    do_train: true
+    do_eval: true
+    do_predict: true
+    output_dir: ${cut_seq.output_dir}/Prediction_results/${extract_llmr.model._name_}
+    logging_dir: ${cut_seq.output_dir}/Prediction_results/${extract_llmr.model._name_}/logs
+    resume_from_checkpoint: null
+    overwrite_output_dir: false
+    save_model: true
+    trained_model_path: model_weights/Machine_Learning/

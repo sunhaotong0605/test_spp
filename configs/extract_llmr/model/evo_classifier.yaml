@@ -1,0 +1,6 @@
+_name_: EvoForClassifier
+pretrained_model_name_or_path: /home/share/huadjyin/home/s_kangqiang/01_data/Model/evo-1-8k-base
+num_classes: 2
+hidden_size: 512
+freeze_embedding: true
+pooling: cls # [cls, mean, max, last]

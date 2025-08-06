@@ -1,0 +1,6 @@
+_name_: NTForClassifier
+pretrained_model_name_or_path: /home/share/huadjyin/home/yinpeng/tnz/NT_model/50M_multi_species_v2/
+num_classes: 2
+hidden_size: null
+freeze_embedding: true
+pooling: cls # [cls, mean, max, last]

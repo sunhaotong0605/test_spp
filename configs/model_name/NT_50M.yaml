@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - /extract_llmr/model: nt_classifier
+  - /extract_llmr/dataset: probiotic
+
+extract_llmr:
+  dataset:
+    batch_size: 64
+    test_split: '*' 

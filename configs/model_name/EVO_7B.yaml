@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - /extract_llmr/model: evo_classifier
+  - /extract_llmr/dataset: probiotic
+
+extract_llmr:
+  dataset:
+    batch_size: 4
+    test_split: '*' 
